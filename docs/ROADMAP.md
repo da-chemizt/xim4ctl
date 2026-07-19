@@ -32,11 +32,23 @@ browser UI  ──REST/WebSocket──►  backend service  ──RFCOMM──�
   activation), and a one-click "make active".
 - **Auto-switch** — feed it the currently-running game (from console title detection) and have it
   fire `0x29` with the matching config index automatically.
+- **Aim translators** — a config's editable pages are authored with the codec; the per-game
+  translator (the `0x17` blobs) is not authored, it is *carried*. For v1 the backend keeps a small
+  **translator store** populated by capturing a game's 12 chunks once from the wire (exact, no
+  database parsing). A config in the library records which translator it uses; on push, the backend
+  sends the config pages plus the stored translator. Sourcing translators directly from the `.ximmr`
+  container is a v2 improvement (needs the container index parsed — see CONFIG_FORMAT.md).
 - **Packaging** — Docker container. If deployed on a host without a local BR/EDR radio, the
   container talks to a thin RFCOMM proxy running on the radio-equipped host.
 
-**First milestone:** read-only — connect, enumerate, render the config library, show one-click
-switch. Then add the editor + write path (already proven at the protocol level).
+**Milestones:**
+1. Read-only — connect, enumerate, render the config library, one-click switch (`0x29`).
+2. Editor + write path — author configs and push editable pages (`0x15`), already proven.
+3. Translator store — capture-per-game translators, attach on push.
+4. Auto-switch — wire in console title detection.
+
+**Deferred (v2):** a `.ximmr` container parser to assemble any game's translator straight from the
+database, so translators don't need to be captured first.
 
 ---
 

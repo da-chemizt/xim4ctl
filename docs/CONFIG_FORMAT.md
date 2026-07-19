@@ -144,25 +144,39 @@ Translators are transferred with `cmd 0x0017` as chunks. Each chunk's payload is
 ```
 
 - `chunk#` 0..11 (a full translator = 12 chunks), `mode` `0x0001` = Hip, `0x0101` = ADS.
-- The **464 data bytes are lifted verbatim** from the game database; the trailing `a0 0f` is a
-  **constant** the app appends to every chunk (not a checksum).
+- The `464` data bytes are the translator payload; the trailing `a0 0f` is a **constant** the app
+  appends to every chunk (not a checksum).
 
 The data is **encrypted** (entropy ≈ 8.0, no compression header, no block structure), and the
 Manager app contains **no decryption code** — it reads each translator from the database and sends
 it to the device unchanged (`Database::GameHipTranslator` / `Database::GameADSTranslator`). The
 device decrypts it internally, so the key lives in the device firmware, not the app.
 
-**You do not need to decrypt a translator to use it.** The translators sit in the game database
-(`.ximmr`), labelled per game/platform/mode, stored as contiguous 464-byte chunks. A translator
-chunk can be regenerated **byte-for-byte** from the database with the framing above (verified
-against captured traffic). So authoring a fully working config is: build the editable pages
-(`0x15`) with the codec, and copy the game's translator from the database (`0x17`). Generating a
-*novel* translator would require breaking the device-side encryption (a firmware project, out of
-scope here).
+**You never need to decrypt a translator to use it** — the encrypted bytes are copied through. The
+question is only *where the bytes come from*:
 
-### Getting the game database
+- **From the wire (recommended):** capture a game's translator once — the 12 `0x17` chunks are the
+  complete translator, verified. Store them and re-send. This is exact and needs no knowledge of the
+  database internals.
+- **From the database (`.ximmr`), partial:** the database is a **container**, not a flat file.
+  Per translator, chunks 0..10 plus the first 352 bytes of chunk 11 are stored **contiguously**
+  right after a plaintext label (`<game>-<mode>-<platform>.<ver>`, e.g. `CoD:MWR-Hip-X1.1`) — about
+  **98% of the translator, byte-exact**. The final ~112 bytes of chunk 11 are stored **elsewhere**
+  in the container and referenced by its index directory. Assembling a translator *entirely* from
+  the database therefore requires parsing that container index (see below) — a documented but
+  unfinished piece.
+
+Generating a *novel* translator (a custom aim curve) would require breaking the device-side
+encryption — a firmware-extraction project, out of scope here.
+
+### The game database (`.ximmr`)
 
 The `.ximmr` is the vendor's copyrighted data and is **not** distributed with this project. Fetch
 your own copy from the vendor's server with `tools/fetch_gamedb.py` (it reads the current file URL
-and MD5 from the `VersionXR` manifest, downloads, and verifies). The database is a container with a
-`XIMR` header, an index region, and the encrypted translator blobs.
+and MD5 from the `VersionXR` manifest, downloads, and verifies).
+
+Container layout (partially mapped): a `XIMR` header whose first fields are the build date and time,
+followed by a **directory of `[offset, id]` pairs** pointing to several sections near the end of the
+file and to a mid-file region. Translators appear as `[label][pad][chunks 0..10 + partial chunk 11]`
+records ~5504 bytes apart. Fully assembling a translator's final fragment requires resolving that
+directory; parsing it end-to-end is future work.
