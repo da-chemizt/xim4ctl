@@ -137,18 +137,28 @@ translator** — the "Smart Translator" that maps mouse motion to a natural stic
 specific game (in **Hip** and **ADS** variants). This is what makes a circular mouse motion produce
 a circular in-game aim instead of a diagonal-clamped "diamond".
 
-Translators are transferred with `cmd 0x0017` as **472-byte chunks** (`[chunk:u8][pad:3][mode:u16]`
-prefix, then payload; a full translator = 12 chunks; `mode` `0x0001` = Hip, `0x0101` = ADS). The
-payload is **encrypted** (entropy ≈ 8.0, no compression header, no block structure). The Manager app
-contains **no decryption code** — it reads each translator from the game database and sends it to
-the device verbatim (`Database::GameHipTranslator` / `Database::GameADSTranslator`). The device
-decrypts it internally, so the key lives in the device firmware, not the app.
+Translators are transferred with `cmd 0x0017` as chunks. Each chunk's payload is:
 
-Practical consequence: you do **not** need to decrypt a translator to use it. The translators are
-stored **byte-for-byte** in the game-support database (`.ximmr`), labelled per game/platform/mode.
-To author a config with correct per-game aim, copy that game's Hip/ADS translator blobs out of the
-database and send them with `0x0017`. Generating a *novel* translator would require breaking the
-device-side encryption (a firmware-extraction project, out of scope here).
+```
+[ chunk# : u8 ][ 00 00 00 ][ mode : u16 ] [ 464 bytes translator data ] [ a0 0f ]
+```
+
+- `chunk#` 0..11 (a full translator = 12 chunks), `mode` `0x0001` = Hip, `0x0101` = ADS.
+- The **464 data bytes are lifted verbatim** from the game database; the trailing `a0 0f` is a
+  **constant** the app appends to every chunk (not a checksum).
+
+The data is **encrypted** (entropy ≈ 8.0, no compression header, no block structure), and the
+Manager app contains **no decryption code** — it reads each translator from the database and sends
+it to the device unchanged (`Database::GameHipTranslator` / `Database::GameADSTranslator`). The
+device decrypts it internally, so the key lives in the device firmware, not the app.
+
+**You do not need to decrypt a translator to use it.** The translators sit in the game database
+(`.ximmr`), labelled per game/platform/mode, stored as contiguous 464-byte chunks. A translator
+chunk can be regenerated **byte-for-byte** from the database with the framing above (verified
+against captured traffic). So authoring a fully working config is: build the editable pages
+(`0x15`) with the codec, and copy the game's translator from the database (`0x17`). Generating a
+*novel* translator would require breaking the device-side encryption (a firmware project, out of
+scope here).
 
 ### Getting the game database
 
