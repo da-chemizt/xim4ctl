@@ -1,0 +1,26 @@
+# --- personal / device-specific data — never publish ---
+# raw bluetooth captures (contain the config library), config backups, engineering notes
+artifacts/
+backups/
+private/
+*.btsnoop
+*.json
+
+# --- copyrighted / third-party — do not redistribute ---
+# app binary, game-support database, decompiled app, repackaged app, third-party libs
+*.apk
+*.idsig
+*.ximmr
+work/
+build/
+tools/openssl/
+tools/apktool.jar
+
+# --- credentials ---
+*.keystore
+*.jks
+
+# --- misc ---
+__pycache__/
+*.pyc
+.DS_Store
