@@ -129,3 +129,30 @@ Compact per-config metadata, read without changing the active config:
 
 See `tools/xim4_config.py` for a parser/author of the setting block and `tools/ab_diff.py` for
 the offset-mapping method.
+
+## Aim translators and the game database
+
+Separate from the human-editable config above, each config also carries a per-game **aim
+translator** — the "Smart Translator" that maps mouse motion to a natural stick response for a
+specific game (in **Hip** and **ADS** variants). This is what makes a circular mouse motion produce
+a circular in-game aim instead of a diagonal-clamped "diamond".
+
+Translators are transferred with `cmd 0x0017` as **472-byte chunks** (`[chunk:u8][pad:3][mode:u16]`
+prefix, then payload; a full translator = 12 chunks; `mode` `0x0001` = Hip, `0x0101` = ADS). The
+payload is **encrypted** (entropy ≈ 8.0, no compression header, no block structure). The Manager app
+contains **no decryption code** — it reads each translator from the game database and sends it to
+the device verbatim (`Database::GameHipTranslator` / `Database::GameADSTranslator`). The device
+decrypts it internally, so the key lives in the device firmware, not the app.
+
+Practical consequence: you do **not** need to decrypt a translator to use it. The translators are
+stored **byte-for-byte** in the game-support database (`.ximmr`), labelled per game/platform/mode.
+To author a config with correct per-game aim, copy that game's Hip/ADS translator blobs out of the
+database and send them with `0x0017`. Generating a *novel* translator would require breaking the
+device-side encryption (a firmware-extraction project, out of scope here).
+
+### Getting the game database
+
+The `.ximmr` is the vendor's copyrighted data and is **not** distributed with this project. Fetch
+your own copy from the vendor's server with `tools/fetch_gamedb.py` (it reads the current file URL
+and MD5 from the `VersionXR` manifest, downloads, and verifies). The database is a container with a
+`XIMR` header, an index region, and the encrypted translator blobs.

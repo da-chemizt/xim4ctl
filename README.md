@@ -46,8 +46,14 @@ tools/
   xim_switch.py      switch active config by index
   xim_backup.py      read-only backup (metadata + active config)
   xim_full_backup.py full backup (activate + read every config; paced, non-destructive)
+  fetch_gamedb.py    download your own copy of the game-support database from the vendor
   crc32table.bin     standard CRC-32 table (poly 0xEDB88320)
 ```
+
+The per-game aim **translators** are not part of the editable config — they are encrypted blobs the
+device decrypts internally, stored in the vendor's game-support database (`.ximmr`). To author a
+config with correct per-game aim you copy the game's translator out of that database; get your own
+copy with `tools/fetch_gamedb.py`. See [docs/CONFIG_FORMAT.md](docs/CONFIG_FORMAT.md#aim-translators-and-the-game-database).
 
 ## Quickstart
 
