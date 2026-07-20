@@ -87,7 +87,7 @@ Quick index (all `cmd` values are little-endian). Each is detailed below.
 | `0x0029` | activate config | make a stored config active |
 | `0x0032` | enumerate config | read one config's list metadata |
 | `0x0033` | config count | number of stored configs |
-| `0x003c` | per-game record | 28-byte record for a game/config |
+| `0x003c` | live input poll | current pressed input (mouse/wheel/key), polled ~15 Hz |
 
 Examples below show the **frame body** (`cmd + seq + payload`); a 4-byte checksum precedes each,
 and `seq` is a 2-byte counter. Responses echo the same `cmd` and carry the device's own `seq`.
@@ -147,8 +147,34 @@ every config is available read-only via `0x0032`/`0x0033` without changing the a
 - **`0x001f` — reorder.** Payload is the full ordering array of config indices, terminated by
   `0xFF` — e.g. `00 01 02 … 16 FF` sends the identity order of 23 configs. Send a permuted array to
   reorder.
-- **`0x003c` — per-game record.** Request `[index:u32]`; response is a 28-byte per-game record
-  (companion to `0x0032`; carries additional per-game fields — not fully mapped).
+### Live input monitoring
+
+- **`0x003c` — live input poll.** The app polls this at ~15 Hz to drive its live input-activity
+  readout (the line that lights up when you press a mouse button, roll the wheel, or hit a key on
+  the hardware plugged into the device). Request payload is a constant selector (`00 15 22 80` in
+  captures); the response is a 28-byte frame whose body begins with the **currently-active input
+  code** followed by a mostly-static status block:
+  ```
+  req   3c00 <seq> 00152280
+  resp  3c01 <seq> [input:u16 LE][... status, largely constant ...]
+  ```
+  The `input` field uses the **exact same 16-bit encoding as config button maps**
+  (see [CONFIG_FORMAT.md](CONFIG_FORMAT.md)), so it decodes with the same helper. `0x0000` = nothing
+  pressed. Observed on the wire:
+
+  | body[0:2] | code | input |
+  |---|---|---|
+  | `0000` | — | idle |
+  | `0840` | `0x4008` | mouse Back (Mouse4) |
+  | `1040` | `0x4010` | mouse Forward (Mouse5) |
+  | `04a0` | `0xa004` | wheel up |
+  | `08a0` | `0xa008` | wheel down |
+
+  Note the response `cmd` reads back as `0x013c` (high byte set to `0x01`) rather than a plain
+  `0x003c` echo. Keyboard presses report in the `0x6xxx`/`0x7xxx` range like any mapped key, though
+  the reference captures only exercised mouse inputs. This poll is read-only and optional for a
+  control client, but it is a ready-made "what's pressed right now" feed for a live UI or a hardware
+  controller's display.
 
 ### Polling (partially characterized)
 

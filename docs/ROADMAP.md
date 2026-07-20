@@ -80,6 +80,9 @@ changes over Wi-Fi to the project-1 backend, which does the RFCOMM write.
 
 - Fast, small changes (sensitivity, ratio, deadzone, curve point) are single-field config writes —
   build the setting page and send `0x15`. Fire-mode selection is `0x29`.
+- A live "what's pressed now" readout is free: poll `0x3c` (~15 Hz) and decode the leading input
+  code with the config button-map decoder (see PROTOCOL.md). Useful for confirming a knob/dial
+  binding on the ESP32 display, or a live activity indicator in the web UI.
 - The write path is per-page; a knob turn maps to one field edit → one page write, which is cheap.
 - Respect the device's one-connection-at-a-time and connectable-window behaviour
   (see [DEVICE_NOTES.md](DEVICE_NOTES.md)); persistent bonding on the relay host avoids button
