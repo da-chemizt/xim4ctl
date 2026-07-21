@@ -16,6 +16,13 @@ build/
 tools/openssl/
 tools/apktool.jar
 
+# web UI: generated/extracted assets (vendor cover art + XIM button icons + manifest),
+# the local config library, and the python venv — all regenerated locally, never published
+webui/frontend/assets/
+webui/data/
+webui/.venv/
+.venv/
+
 # --- credentials ---
 *.keystore
 *.jks
@@ -24,3 +31,7 @@ tools/apktool.jar
 __pycache__/
 *.pyc
 .DS_Store
+
+# editor/session scratch and transcripts — but keep requirements.txt
+*.txt
+!requirements.txt

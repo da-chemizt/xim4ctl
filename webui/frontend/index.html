@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>xim4ctl</title>
+<link rel="stylesheet" href="style.css">
+<script>
+  // set theme before first paint (saved choice, else follow the OS) — no flash
+  (function(){var q=new URLSearchParams(location.search).get('theme');var t=(q==='dark'||q==='light')?q:(localStorage.getItem('xim_theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light'));document.documentElement.setAttribute('data-theme',t);})();
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">XIM<b>4</b></span>
+    <span class="brand-sub">config manager</span>
+  </div>
+  <div class="topbar-status">
+    <span id="activeChip" class="chip" title="Active config on device">active: —</span>
+    <span id="connDot" class="conn-dot off" title="Device connection"></span>
+    <span id="connText" class="conn-text">offline</span>
+    <button id="reconnectBtn" class="chip-btn" type="button" title="Bust a wedged link and reconnect" hidden>⟳ Reconnect</button>
+    <button id="activityToggle" class="chip-btn" type="button" title="Toggle live input→output activity">⇄ Activity</button>
+    <button id="themeBtn" class="chip-btn theme-btn" type="button" title="Switch to light mode" aria-label="Toggle theme">
+      <svg id="themeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg id="themeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:none">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- ===================== LIBRARY VIEW ===================== -->
+  <section id="libraryView" class="view">
+    <div class="view-head">
+      <div>
+        <h2>Config Library</h2>
+        <p class="sub">Your full library of XIM4 profiles. Click a config to edit, or make one active on the device.</p>
+      </div>
+      <div class="row">
+        <button id="newBtn" class="btn-secondary" type="button">+ New</button>
+        <button id="syncBtn" class="btn-primary" type="button">Sync from device</button>
+      </div>
+    </div>
+    <div id="libGrid" class="lib-grid" aria-live="polite"></div>
+    <p id="libEmpty" class="help" hidden>No configs yet. Sync from the device or create a new one.</p>
+  </section>
+
+  <!-- ===================== EDITOR VIEW ===================== -->
+  <section id="editorView" class="view" hidden>
+    <div class="view-head">
+      <div class="row" style="gap:10px">
+        <button id="backBtn" class="btn-secondary" type="button">← Library</button>
+        <h2 id="edTitle" style="margin:0">Edit Config</h2>
+      </div>
+      <div class="row">
+        <button id="makeActiveBtn" class="btn-secondary" type="button">Make active</button>
+        <button id="saveLibBtn" class="btn-secondary" type="button">Save to library</button>
+        <button id="writeBtn" class="btn-primary" type="button">Write to device</button>
+      </div>
+    </div>
+
+    <div id="edCover" class="ed-cover" hidden></div>
+
+    <!-- config-level header -->
+    <fieldset class="card">
+      <legend>Config</legend>
+      <div class="grid2">
+        <label>Name
+          <input type="text" id="cfgName" maxlength="47" autocomplete="off">
+        </label>
+        <label>Platform
+          <select id="cfgPlatform"></select>
+        </label>
+        <label>Shell color (beacon)
+          <div class="row" style="gap:8px">
+            <select id="cfgBeacon" class="fill"></select>
+            <span id="beaconSwatch" class="swatch"></span>
+          </div>
+        </label>
+        <label>Push-to-talk key
+          <div class="inp-picker" data-picker="pttKey"></div>
+        </label>
+      </div>
+      <p class="help">slot <code id="cfgSlot">—</code></p>
+    </fieldset>
+
+    <!-- fire-mode selector -->
+    <div class="firemode-bar">
+      <span class="firemode-label">Fire-mode:</span>
+      <div id="firemodeTabs" class="firemode-tabs"></div>
+    </div>
+
+    <!-- setting tabs -->
+    <nav class="tabs" id="settingTabs">
+      <button data-tab="mouse" class="active" type="button">Mouse</button>
+      <button data-tab="keyboard" type="button">Keyboard</button>
+      <button data-tab="joystick" type="button">Joystick</button>
+      <button data-tab="buttons" type="button">Buttons</button>
+    </nav>
+
+    <!-- MOUSE -->
+    <section class="tabpanel active" data-panel="mouse">
+      <fieldset class="card">
+        <legend>Aim</legend>
+        <div class="grid2">
+          <label>Sensitivity
+            <input type="number" id="sSensitivity" step="0.5" min="0" max="655">
+          </label>
+          <label>Y/X ratio
+            <input type="number" id="sYxRatio" step="0.01" min="0" max="10">
+          </label>
+          <label>Boost
+            <input type="number" id="sBoost" step="1" min="0" max="65535">
+          </label>
+          <label>Translator
+            <select id="sUseTranslator">
+              <option value="0">Hip</option>
+              <option value="1">ADS</option>
+            </select>
+          </label>
+          <label class="kv"><input type="checkbox" id="sInvert"> <span class="fill">Invert vertical</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="card">
+        <legend>Ballistic curve <span class="help" id="curveMeta"></span></legend>
+        <canvas id="curveCanvas" class="curve-canvas" height="160"></canvas>
+        <div id="curveInputs" class="curve-inputs"></div>
+      </fieldset>
+    </section>
+
+    <!-- KEYBOARD -->
+    <section class="tabpanel" data-panel="keyboard">
+      <fieldset class="card">
+        <legend>Left stick (movement)</legend>
+        <div class="grid2" id="leftStickGrid"></div>
+      </fieldset>
+      <fieldset class="card">
+        <legend>Right stick (look)</legend>
+        <div class="grid2" id="rightStickGrid"></div>
+      </fieldset>
+    </section>
+
+    <!-- JOYSTICK -->
+    <section class="tabpanel" data-panel="joystick">
+      <fieldset class="card">
+        <legend>Stick behaviour</legend>
+        <div class="grid2">
+          <label>Dead zone
+            <input type="number" id="sDeadzone" step="1" min="0" max="65535">
+          </label>
+          <label class="kv"><input type="checkbox" id="sSwapSticks"> <span class="fill">Swap sticks</span></label>
+          <label class="kv"><input type="checkbox" id="sLeftStick"> <span class="fill">Mouse drives left stick</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="card">
+        <legend>Fire-mode activation</legend>
+        <div class="grid2">
+          <label>Activate key
+            <div class="inp-picker" data-picker="activateKey"></div>
+          </label>
+          <label>Activate mode
+            <select id="sActivateMode">
+              <option value="0">Hold</option>
+              <option value="1">Toggle</option>
+            </select>
+          </label>
+          <label>Turn-assist key
+            <div class="inp-picker" data-picker="turnAssistKey"></div>
+          </label>
+          <label>Turn-assist mode
+            <select id="sTurnAssistMode">
+              <option value="0">Hold</option>
+              <option value="1">Toggle</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="tabpanel" data-panel="buttons">
+      <fieldset class="card">
+        <legend>Button mapping</legend>
+        <div class="btn-map-head">
+          <span>Controller button</span><span>Primary</span><span>Secondary</span>
+        </div>
+        <div id="buttonMap" class="btn-map"></div>
+      </fieldset>
+    </section>
+  </section>
+</main>
+
+<!-- action / status bar -->
+<div class="action-bar">
+  <span id="statusMsg" class="status"></span>
+  <div id="logMini" class="log-mini"></div>
+</div>
+
+<!-- input→output activity panel (right rail) -->
+<aside id="activityPanel" class="activity">
+  <div class="activity-head"><span>Input → Output</span><button id="activityClose" type="button">✕</button></div>
+  <div class="activity-sub">input <span class="act-hint">→ output (function)</span></div>
+  <div id="activityFeed" class="activity-feed"><div class="act-empty">Waiting for device input…</div></div>
+</aside>
+
+<!-- input picker popover template -->
+<div id="pickerPop" class="picker-pop" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

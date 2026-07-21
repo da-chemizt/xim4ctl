@@ -1,0 +1,29 @@
+# xim4ctl web UI — runs on the host that has the BR/EDR radio (e.g. a Raspberry Pi).
+#
+# Bluetooth notes:
+#   AF_BLUETOOTH / RFCOMM sockets talk to the host kernel BT stack, which is NOT
+#   network-namespaced. host networking is used so the HTTP port binds the host IP
+#   and so RFCOMM reaches hci0 directly; NET_ADMIN lets the container open the
+#   RFCOMM socket. The self-heal runs `bluetoothctl` in-container, which reaches the
+#   host bluetoothd over the mounted D-Bus system socket, so no host-side pairing is
+#   needed — the app trusts/recovers the XIM4 itself.
+services:
+  xim4ctl:
+    build: .
+    image: xim4ctl:latest
+    container_name: xim4ctl
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+    environment:
+      - XIM4_ADDR=${XIM4_ADDR:-AA:BB:CC:DD:EE:FF}   # set to your XIM4 bdaddr
+      - XIM4_CHANNEL=1
+      - XIM4_LIBRARY=/app/data/library.json
+      - XIM4_SEED_BACKUP=/app/data/seed_backup.json
+      - XIM4_FRONTEND=/app/frontend
+    volumes:
+      - ./data:/app/data
+      # host D-Bus so in-container bluetoothctl controls the host adapter
+      - /var/run/dbus:/var/run/dbus

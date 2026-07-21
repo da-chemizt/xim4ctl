@@ -19,6 +19,12 @@ captures and static analysis of the app's native library, and verified against a
   encodings, platform/color enums, pagination).
 - Verified **end-to-end**: a Linux host connects over RFCOMM, reads and backs up every config,
   switches the active config, and can author configs with a working codec.
+- Game-support database (`.ximmr`) container format: **fully mapped** (directory, per-game
+  resources, box art, button/platform icons, action labels, aim-translator blobs). The translator
+  encryption is characterised (ECB, single firmware-held key) but not broken. See
+  [docs/XIMR_FORMAT.md](docs/XIMR_FORMAT.md).
+- **Web UI** (`webui/`): a browser front-end + backend that owns the RFCOMM link — config library,
+  a full editor, one-click switch, live input activity, and per-game auto-switch.
 
 ## Capabilities
 
@@ -36,6 +42,9 @@ docs/
   PROTOCOL.md        wire protocol: transport, framing, checksum, commands
   CONFIG_FORMAT.md   config binary layout, field offsets, input encodings, enums
   DEVICE_NOTES.md    LED semantics, pairing/connectable window, wedging, capture method
+  XIMR_FORMAT.md     game-support database (.ximmr) container format spec
+  XIMR_UNKNOWNS.md   detailed .ximmr structure reference (platform lists, gains, blobs, trailer)
+  TRANSLATOR_CRYPTO.md  aim-translator encryption analysis (ECB, firmware-held key)
   ROADMAP.md         planned web frontend + hardware controller
 tools/
   xim4_frame.py      frame builder + checksum (CRC-32, init 0xFF)
@@ -47,7 +56,12 @@ tools/
   xim_backup.py      read-only backup (metadata + active config)
   xim_full_backup.py full backup (activate + read every config; paced, non-destructive)
   fetch_gamedb.py    download your own copy of the game-support database from the vendor
+  build_assets.py    extract UI icons + covers + action labels from the .ximmr into the web UI
+  extract_covers.py  extract per-game box art from the .ximmr
+  extract_action_labels.py  extract per-game button→action labels from the .ximmr
+  extract_translators.py    catalogue the (encrypted) aim-translator blobs
   crc32table.bin     standard CRC-32 table (poly 0xEDB88320)
+webui/               browser UI + FastAPI backend (Docker); see webui/README.md
 ```
 
 The per-game aim **translators** are not part of the editable config — they are encrypted blobs the
@@ -68,6 +82,16 @@ python3 tools/xim_full_backup.py $(date +%s)   # full backup to ~/xim_full_backu
 
 If the connection fails with `Host is down`, the device is outside its connectable window — press
 its button, or bond the host for persistent connectivity (see `docs/DEVICE_NOTES.md`).
+
+## Web UI
+
+`webui/` is a browser front-end with a FastAPI backend that owns the RFCOMM connection, giving the
+device an unlimited external config library with a full editor, one-click config switching, a live
+`input → output` activity view, press-to-assign, self-healing Bluetooth, and per-game auto-switch.
+It ships as a Docker container for a host with a Classic-Bluetooth radio. The game covers, button
+icons, and per-game action labels shown in the UI are **generated locally** from your own copy of
+the game database (`.ximmr`) — none of that vendor art or data is included here. See
+[webui/README.md](webui/README.md).
 
 ## Notes and scope
 
